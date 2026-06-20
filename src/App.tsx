@@ -8,6 +8,7 @@ import { useDockerApiUrlMigrationNotice } from './hooks/useDockerApiUrlMigration
 import type { AppSettings } from './types'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
+import GalleryCharacterRail from './components/GalleryCharacterRail'
 import TaskGrid from './components/TaskGrid'
 import AgentWorkspace from './components/AgentWorkspace'
 import InputBar from './components/InputBar'
@@ -115,8 +116,13 @@ export default function App() {
       ) : (
         <main data-home-main data-drag-select-surface className="pb-48">
           <div className="safe-area-x max-w-7xl mx-auto">
-            <SearchBar />
-            {filterFavorite && !activeFavoriteCollectionId ? <FavoriteCollectionsView /> : <TaskGrid />}
+            <div className="lg:flex lg:items-start lg:gap-6">
+              <GalleryCharacterRail />
+              <div className="min-w-0 flex-1">
+                <SearchBar />
+                {filterFavorite && !activeFavoriteCollectionId ? <FavoriteCollectionsView /> : <TaskGrid />}
+              </div>
+            </div>
           </div>
         </main>
       )}

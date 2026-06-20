@@ -21,7 +21,6 @@ import DragUploadOverlay from './input/dragUploadOverlay'
 import InputBatchBars from './input/inputBatchBars'
 import InputParamsPanel from './input/inputParamsPanel'
 import InputNaiParamsPanel from './input/inputNaiParamsPanel'
-import CharacterRail from './input/CharacterRail'
 
 
 function getMentionTagTextLength(el: Element) {
@@ -395,14 +394,6 @@ export default function InputBar() {
   const setPrompt = useStore((s) => s.setPrompt)
   const negativePrompt = useStore((s) => s.negativePrompt)
   const setNegativePrompt = useStore((s) => s.setNegativePrompt)
-  const characters = useStore((s) => s.characters)
-  const use_coords = useStore((s) => s.use_coords)
-  const use_order = useStore((s) => s.use_order)
-  const addCharacter = useStore((s) => s.addCharacter)
-  const updateCharacter = useStore((s) => s.updateCharacter)
-  const removeCharacter = useStore((s) => s.removeCharacter)
-  const setUseCoords = useStore((s) => s.setUseCoords)
-  const setUseOrder = useStore((s) => s.setUseOrder)
   const inputImages = useStore((s) => s.inputImages)
   const addInputImage = useStore((s) => s.addInputImage)
   const replaceInputImage = useStore((s) => s.replaceInputImage)
@@ -2051,20 +2042,6 @@ export default function InputBar() {
           onDeleteSelected={handleDeleteSelected}
         />
         <div ref={cardRef} className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl border border-white/50 dark:border-white/[0.08] shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] rounded-2xl sm:rounded-3xl p-3 sm:p-4 ring-1 ring-black/5 dark:ring-white/10">
-          <div className={isGalleryMode ? 'flex flex-col gap-3 sm:flex-row sm:items-stretch' : ''}>
-          {isGalleryMode && (
-            <CharacterRail
-              characters={characters}
-              useCoords={use_coords}
-              useOrder={use_order}
-              onAddCharacter={addCharacter}
-              onUpdateCharacter={updateCharacter}
-              onRemoveCharacter={removeCharacter}
-              onUseCoordsChange={setUseCoords}
-              onUseOrderChange={setUseOrder}
-            />
-          )}
-          <div className={isGalleryMode ? 'min-w-0 flex-1 flex flex-col' : ''}>
           {/* 移动端拖动条 */}
           <div
             ref={handleRef}
@@ -2439,8 +2416,6 @@ export default function InputBar() {
                 </div>
               </div>
             </div>
-          </div>
-          </div>
           </div>
 
           <input
