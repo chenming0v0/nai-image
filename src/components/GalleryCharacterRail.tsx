@@ -12,7 +12,7 @@ export default function GalleryCharacterRail() {
   const setUseOrder = useStore((s) => s.setUseOrder)
 
   return (
-    <aside className="hidden lg:block w-[300px] shrink-0 sticky top-24 self-start max-h-[calc(100vh-7rem)] rounded-3xl border border-white/50 bg-white/70 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-black/5 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-gray-900/70 dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:ring-white/10">
+    <aside className="hidden lg:block w-[300px] shrink-0 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-hidden rounded-3xl border border-gray-300/70 bg-gray-100/82 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.14)] ring-1 ring-black/10 backdrop-blur-2xl supports-[backdrop-filter]:bg-gray-100/72 dark:border-white/[0.10] dark:bg-gray-900/78 dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)] dark:ring-white/10">
       <CharacterRail
         characters={characters}
         useCoords={useCoords}

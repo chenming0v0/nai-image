@@ -25,7 +25,7 @@ export default function PositionGrid({ value, onChange, characters = [], compact
   return (
     <div className={className}>
       <div
-        className={`relative grid grid-cols-5 gap-1 rounded-xl border border-gray-200/60 bg-white/40 p-2 dark:border-white/[0.08] dark:bg-white/[0.03] aspect-square ${
+        className={`relative grid grid-cols-5 gap-1 rounded-2xl border border-gray-300/70 bg-white/52 p-2 shadow-inner ring-1 ring-white/45 dark:border-white/[0.08] dark:bg-white/[0.04] aspect-square ${
           compact ? 'max-w-[168px]' : 'max-w-[220px]'
         }`}
       >
@@ -43,7 +43,7 @@ export default function PositionGrid({ value, onChange, characters = [], compact
                 className={`relative flex aspect-square items-center justify-center rounded-md border text-[10px] font-mono transition-colors ${
                   isActive
                     ? 'border-violet-500/80 bg-violet-500/15 text-violet-600 dark:text-violet-300'
-                    : 'border-gray-200/50 bg-transparent text-gray-400 hover:border-gray-300 dark:border-white/[0.06] dark:hover:bg-white/[0.04]'
+                    : 'border-gray-300/60 bg-white/35 text-gray-500 hover:border-gray-400 hover:bg-white/60 dark:border-white/[0.07] dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
                 }`}
               >
                 <span className="opacity-60">{pos}</span>
