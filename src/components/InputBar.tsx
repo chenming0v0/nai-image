@@ -13,6 +13,8 @@ import { collectAgentRoundOutputImageSlots } from '../lib/agentImageReferences'
 import { useHintTooltip } from '../hooks/useHintTooltip'
 import { downloadImageEntriesAsZip, downloadImageIds, formatExportFileTime, getTaskOutputImageZipEntries } from '../lib/downloadImages'
 import SizePickerModal from './SizePickerModal'
+import ReferenceVibeModal from './ReferenceVibeModal'
+import { NAI_GALLERY_MAX_INPUT_IMAGES } from '../lib/naiVibeDefaults'
 import { CloseIcon } from './icons'
 import ButtonTooltip from './input/buttonTooltip'
 import DragUploadOverlay from './input/dragUploadOverlay'
@@ -615,6 +617,7 @@ export default function InputBar() {
   const maskDraft = useStore((s) => s.maskDraft)
   const setMaskEditorImageId = useStore((s) => s.setMaskEditorImageId)
   const moveInputImage = useStore((s) => s.moveInputImage)
+  const updateInputImageVibe = useStore((s) => s.updateInputImageVibe)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -631,6 +634,7 @@ export default function InputBar() {
   const [imageHintId, setImageHintId] = useState<string | null>(null)
   const [mobileCollapsed, setMobileCollapsed] = useState(false)
   const [showSizePicker, setShowSizePicker] = useState(false)
+  const [vibeEditImageId, setVibeEditImageId] = useState<string | null>(null)
   const [showMobileUploadMenu, setShowMobileUploadMenu] = useState(false)
   const [maskPreviewUrl, setMaskPreviewUrl] = useState('')
   const [imageDragIndex, setImageDragIndex] = useState<number | null>(null)
@@ -790,8 +794,10 @@ export default function InputBar() {
         { label: 'medium', value: 'medium' },
         { label: 'high', value: 'high' },
       ]
-  const atImageLimit = inputImages.length >= API_MAX_IMAGES
-  const uploadImageTooltipText = atImageLimit ? `参考图数量已达上限（${API_MAX_IMAGES} 张），无法继续添加` : '上传图片'
+  const galleryImageLimit = NAI_GALLERY_MAX_INPUT_IMAGES
+  const effectiveMaxImages = isGalleryMode ? galleryImageLimit : API_MAX_IMAGES
+  const atImageLimit = inputImages.length >= effectiveMaxImages
+  const uploadImageTooltipText = atImageLimit ? `图片数量已达上限（${effectiveMaxImages} 张），无法继续添加` : '上传图片'
   const transparentOutputHint = useHintTooltip()
   const handleTransparentOutputMenuOpenChange = useCallback((open: boolean) => {
     if (open) transparentOutputHint.hide()
@@ -1096,15 +1102,16 @@ export default function InputBar() {
   const handleFiles = async (files: FileList | File[]) => {
     try {
       const currentCount = useStore.getState().inputImages.length
-      if (currentCount >= API_MAX_IMAGES) {
+      const maxImages = useStore.getState().appMode === 'gallery' ? NAI_GALLERY_MAX_INPUT_IMAGES : API_MAX_IMAGES
+      if (currentCount >= maxImages) {
         useStore.getState().showToast(
-          `参考图数量已达上限（${API_MAX_IMAGES} 张），无法继续添加`,
+          `图片数量已达上限（${maxImages} 张），无法继续添加`,
           'error',
         )
         return
       }
 
-      const remaining = API_MAX_IMAGES - currentCount
+      const remaining = maxImages - currentCount
       const accepted = Array.from(files).filter((f) => f.type.startsWith('image/'))
       const toAdd = accepted.slice(0, remaining)
       const discarded = accepted.length - toAdd.length
@@ -1115,7 +1122,7 @@ export default function InputBar() {
 
       if (discarded > 0) {
         useStore.getState().showToast(
-          `已达上限 ${API_MAX_IMAGES} 张，${discarded} 张图片被丢弃`,
+          `已达上限 ${maxImages} 张，${discarded} 张图片被丢弃`,
           'error',
         )
       }
@@ -1142,6 +1149,11 @@ export default function InputBar() {
   const handleEditReferenceImage = useCallback((img: (typeof inputImages)[number], idx: number, isMaskTarget: boolean) => {
     if (isMaskTarget) {
       setMaskEditorImageId(img.id)
+      return
+    }
+
+    if (isGalleryMode && idx >= 1) {
+      setVibeEditImageId(img.id)
       return
     }
 
@@ -1178,7 +1190,7 @@ export default function InputBar() {
         },
       ],
     })
-  }, [commitReferenceEditChoice, openReplaceReferenceFilePicker, setConfirmDialog, setMaskEditorImageId, settings.referenceImageEditAction])
+  }, [commitReferenceEditChoice, isGalleryMode, openReplaceReferenceFilePicker, setConfirmDialog, setMaskEditorImageId, settings.referenceImageEditAction])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     await handleFilesRef.current(e.target.files || [])
@@ -1637,8 +1649,16 @@ export default function InputBar() {
 
   const renderImageThumb = (img: (typeof inputImages)[number], idx: number) => {
     const isMaskTarget = maskDraft?.targetImageId === img.id
-    const canEdit = !maskTargetImage || isMaskTarget
-    const imageHintText = isMaskTarget ? '遮罩图必须为第一张图' : ''
+    const isGalleryBase = isGalleryMode && idx === 0
+    const isGalleryVibeRef = isGalleryMode && idx >= 1
+    const canEdit = isGalleryVibeRef || !maskTargetImage || isMaskTarget
+    const imageHintText = isMaskTarget
+      ? '改图底图（局部重绘）'
+      : isGalleryBase
+      ? '改图底图：点击编辑可替换或添加遮罩'
+      : isGalleryVibeRef
+      ? 'Vibe 参考：点击编辑权重'
+      : ''
     const displaySrc = isMaskTarget && maskPreviewUrl ? maskPreviewUrl : img.dataUrl
     const isImageDragging = imageDragIndex === idx
     const isLast = idx === inputImages.length - 1
@@ -1820,7 +1840,17 @@ export default function InputBar() {
               />
             </div>
           )}
-          {isMaskTarget && (
+          {isGalleryBase && (
+            <span className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none ${isMaskTarget ? 'bg-violet-600/90' : 'bg-blue-600/90'}`}>
+              {isMaskTarget ? '改图·局部' : '改图'}
+            </span>
+          )}
+          {isGalleryVibeRef && (
+            <span className="absolute left-1 top-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
+              参考{idx}
+            </span>
+          )}
+          {!isGalleryMode && isMaskTarget && (
             <span className="absolute left-1 top-1 rounded bg-blue-500/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
               MASK
             </span>
@@ -1835,7 +1865,7 @@ export default function InputBar() {
                 e.stopPropagation()
                 handleEditReferenceImage(img, idx, isMaskTarget)
               }}
-              title={isMaskTarget ? "编辑遮罩" : "编辑"}
+              title={isGalleryVibeRef ? "Vibe 权重" : isMaskTarget ? "编辑遮罩" : isGalleryBase ? "改图 / 遮罩" : "编辑"}
             >
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -1963,7 +1993,26 @@ export default function InputBar() {
 
   return (
     <>
-      <DragUploadOverlay visible={isDragging} atImageLimit={atImageLimit} maxImages={API_MAX_IMAGES} />
+      <DragUploadOverlay visible={isDragging} atImageLimit={atImageLimit} maxImages={effectiveMaxImages} />
+
+
+      {vibeEditImageId && (() => {
+        const vibeIdx = inputImages.findIndex((item) => item.id === vibeEditImageId)
+        const vibeImg = vibeIdx >= 0 ? inputImages[vibeIdx] : null
+        if (!vibeImg || vibeIdx < 1) return null
+        return (
+          <ReferenceVibeModal
+            image={vibeImg}
+            referenceIndex={vibeIdx}
+            onClose={() => setVibeEditImageId(null)}
+            onSave={(patch) => updateInputImageVibe(vibeImg.id, patch)}
+            onReplace={() => {
+              setVibeEditImageId(null)
+              openReplaceReferenceFilePicker(vibeIdx, vibeImg.id)
+            }}
+          />
+        )
+      })()}
 
       {showSizePicker && (
         <SizePickerModal

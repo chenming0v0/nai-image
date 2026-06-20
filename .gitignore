@@ -5,3 +5,5 @@ dev-proxy.config.json
 
 backend/nai-image-server.exe
 backend/data/
+
+temp/

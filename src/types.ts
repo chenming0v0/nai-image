@@ -135,6 +135,10 @@ export interface TaskParams {
   cfg_rescale?: number | null
   noise_schedule?: string
   image_format?: 'png' | 'webp'
+  controlnet_strength?: number
+  i2i_strength?: number
+  i2i_noise?: number
+  inpaint_strength?: number
 }
 
 export const DEFAULT_PARAMS: TaskParams = {
@@ -153,6 +157,10 @@ export const DEFAULT_PARAMS: TaskParams = {
   cfg_rescale: null,
   noise_schedule: 'karras',
   image_format: 'png',
+  controlnet_strength: 1,
+  i2i_strength: 0.7,
+  i2i_noise: 0,
+  inpaint_strength: 1,
 }
 
 // ===== 输入图片（UI 层面） =====
@@ -162,6 +170,12 @@ export interface InputImage {
   id: string
   /** data URL，用于预览 */
   dataUrl: string
+  /** Vibe 参考：信息提取强度 controlnet.images[i].info_extracted */
+  vibeInfoExtracted?: number
+  /** Vibe 参考：单图参考强度 controlnet.images[i].strength */
+  vibeStrength?: number
+  /** 上次生成返回的 cache_id，可免传图 */
+  vibeCacheId?: string
 }
 
 export interface MaskDraft {

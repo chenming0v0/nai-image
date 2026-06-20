@@ -807,6 +807,7 @@ interface AppState {
   clearInputImages: () => void
   setInputImages: (imgs: InputImage[], options?: { equivalentImageIds?: Record<string, string> }) => void
   moveInputImage: (fromIdx: number, toIdx: number) => void
+  updateInputImageVibe: (imageId: string, patch: Pick<InputImage, 'vibeInfoExtracted' | 'vibeStrength'>) => void
   maskDraft: MaskDraft | null
   setMaskDraft: (draft: MaskDraft | null) => void
   clearMaskDraft: () => void
@@ -979,7 +980,11 @@ function normalizeInputImages(value: unknown): InputImage[] {
   return value
     .map((img): InputImage | null => {
       if (!isRecord(img) || typeof img.id !== 'string') return null
-      return { id: img.id, dataUrl: typeof img.dataUrl === 'string' ? img.dataUrl : '' }
+      const next: InputImage = { id: img.id, dataUrl: typeof img.dataUrl === 'string' ? img.dataUrl : '' }
+      if (typeof img.vibeInfoExtracted === 'number') next.vibeInfoExtracted = img.vibeInfoExtracted
+      if (typeof img.vibeStrength === 'number') next.vibeStrength = img.vibeStrength
+      if (typeof img.vibeCacheId === 'string') next.vibeCacheId = img.vibeCacheId
+      return next
     })
     .filter((img): img is InputImage => img != null)
 }
@@ -1346,6 +1351,13 @@ export const useStore = create<AppState>()(
             ...(shouldClearMask ? { maskDraft: null, maskEditorImageId: null } : {}),
           })
         }),
+
+      updateInputImageVibe: (imageId, patch) => set((s) => {
+        const idx = s.inputImages.findIndex((img) => img.id === imageId)
+        if (idx < 0) return s
+        const inputImages = s.inputImages.map((img, i) => i === idx ? { ...img, ...patch } : img)
+        return syncActiveInputDraft(s, { inputImages })
+      }),
       moveInputImage: (fromIdx, toIdx) =>
         set((s) => {
           const images = [...s.inputImages]
