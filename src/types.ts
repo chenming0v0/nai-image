@@ -127,16 +127,32 @@ export interface TaskParams {
   moderation: 'auto' | 'low'
   n: number
   transparent_output: boolean
+  steps?: number
+  scale?: number
+  sampler?: string
+  seed?: number | null
+  variety_boost?: boolean
+  cfg_rescale?: number | null
+  noise_schedule?: string
+  image_format?: 'png' | 'webp'
 }
 
 export const DEFAULT_PARAMS: TaskParams = {
-  size: 'auto',
+  size: '832x1216',
   quality: 'auto',
   output_format: 'png',
   output_compression: null,
   moderation: 'auto',
   n: 1,
   transparent_output: false,
+  steps: 23,
+  scale: 5,
+  sampler: 'k_euler_ancestral',
+  seed: null,
+  variety_boost: false,
+  cfg_rescale: null,
+  noise_schedule: 'karras',
+  image_format: 'png',
 }
 
 // ===== 输入图片（UI 层面） =====

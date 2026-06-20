@@ -90,6 +90,7 @@ const ERROR_TOAST_MAX_LENGTH = 80
 type ToastType = 'info' | 'success' | 'error'
 type AgentInputDraft = {
   prompt: string
+  negativePrompt?: string
   inputImages: InputImage[]
   maskDraft: MaskDraft | null
   maskEditorImageId: string | null
@@ -725,6 +726,7 @@ function mergePersistedState(persistedState: unknown, currentState: AppState): A
   const galleryInputDraft = settings.persistInputOnRestart
     ? normalizeAgentInputDraft(persisted.galleryInputDraft ?? {
         prompt: persisted.prompt,
+        negativePrompt: typeof persisted.negativePrompt === 'string' ? persisted.negativePrompt : '',
         inputImages: persisted.inputImages,
         maskDraft: null,
         maskEditorImageId: null,
@@ -739,6 +741,7 @@ function mergePersistedState(persistedState: unknown, currentState: AppState): A
       ...agentInputDrafts,
       [activeAgentConversationId]: normalizeAgentInputDraft({
         prompt: persisted.prompt,
+        negativePrompt: typeof persisted.negativePrompt === 'string' ? persisted.negativePrompt : '',
         inputImages: persisted.inputImages,
         maskDraft: null,
         maskEditorImageId: null,
@@ -772,6 +775,7 @@ function mergePersistedState(persistedState: unknown, currentState: AppState): A
     supportPromptOpen: Boolean(persisted.supportPromptOpen),
     supportPromptSkippedForImportedData: Boolean(persisted.supportPromptSkippedForImportedData),
     prompt: restoredAgentDraft ? restoredAgentDraft.prompt : galleryInputDraft?.prompt ?? '',
+    negativePrompt: restoredAgentDraft ? restoredAgentDraft.negativePrompt : galleryInputDraft?.negativePrompt ?? '',
     inputImages: restoredAgentDraft ? restoredAgentDraft.inputImages : galleryInputDraft?.inputImages ?? [],
     maskDraft: restoredAgentDraft ? restoredAgentDraft.maskDraft : galleryInputDraft?.maskDraft ?? null,
     maskEditorImageId: restoredAgentDraft ? restoredAgentDraft.maskEditorImageId : galleryInputDraft?.maskEditorImageId ?? null,
@@ -794,6 +798,8 @@ interface AppState {
   // 输入
   prompt: string
   setPrompt: (p: string) => void
+  negativePrompt?: string
+  setNegativePrompt: (p: string) => void
   inputImages: InputImage[]
   addInputImage: (img: InputImage) => void
   replaceInputImage: (idx: number, img: InputImage) => void
@@ -993,6 +999,7 @@ function normalizeAgentInputDraft(value: unknown, fallbackUpdatedAt = Date.now()
   const updatedAt = typeof draft.updatedAt === 'number' && Number.isFinite(draft.updatedAt) ? draft.updatedAt : fallbackUpdatedAt
   return {
     prompt: typeof draft.prompt === 'string' ? draft.prompt : '',
+    negativePrompt: typeof draft.negativePrompt === 'string' ? draft.negativePrompt : '',
     inputImages: normalizeInputImages(draft.inputImages),
     maskDraft: normalizeMaskDraft(draft.maskDraft),
     maskEditorImageId: typeof draft.maskEditorImageId === 'string' ? draft.maskEditorImageId : null,
@@ -1033,9 +1040,10 @@ export function cleanStaleAgentInputDrafts(drafts: Record<string, AgentInputDraf
   return next
 }
 
-function clearInputDraftState(): Pick<AgentInputDraft, 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
+function clearInputDraftState(): Pick<AgentInputDraft, 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
   return {
     prompt: '',
+    negativePrompt: '',
     inputImages: [],
     maskDraft: null,
     maskEditorImageId: null,
@@ -1045,6 +1053,7 @@ function clearInputDraftState(): Pick<AgentInputDraft, 'prompt' | 'inputImages' 
 function copyAgentInputDraft(draft: AgentInputDraft): AgentInputDraft {
   return {
     prompt: draft.prompt,
+    negativePrompt: draft.negativePrompt ?? '',
     inputImages: draft.inputImages.map((img) => ({ ...img })),
     maskDraft: draft.maskDraft ? { ...draft.maskDraft } : null,
     maskEditorImageId: draft.maskEditorImageId,
@@ -1052,9 +1061,10 @@ function copyAgentInputDraft(draft: AgentInputDraft): AgentInputDraft {
   }
 }
 
-function getCurrentAgentInputDraft(state: Pick<AppState, 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>): AgentInputDraft {
+function getCurrentAgentInputDraft(state: Pick<AppState, 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>): AgentInputDraft {
   return {
     prompt: state.prompt,
+    negativePrompt: state.negativePrompt,
     inputImages: state.inputImages,
     maskDraft: state.maskDraft,
     maskEditorImageId: state.maskEditorImageId,
@@ -1063,7 +1073,7 @@ function getCurrentAgentInputDraft(state: Pick<AppState, 'prompt' | 'inputImages
 }
 
 function isEmptyAgentInputDraft(draft: AgentInputDraft) {
-  return draft.prompt.length === 0 && draft.inputImages.length === 0 && !draft.maskDraft && !draft.maskEditorImageId
+  return draft.prompt.length === 0 && (draft.negativePrompt?.length ?? 0) === 0 && draft.inputImages.length === 0 && !draft.maskDraft && !draft.maskEditorImageId
 }
 
 function setAgentInputDraft(drafts: Record<string, AgentInputDraft>, conversationId: string, draft: AgentInputDraft) {
@@ -1076,12 +1086,12 @@ function setAgentInputDraft(drafts: Record<string, AgentInputDraft>, conversatio
   return next
 }
 
-function saveActiveAgentInputDrafts(state: Pick<AppState, 'appMode' | 'activeAgentConversationId' | 'agentInputDrafts' | 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>) {
+function saveActiveAgentInputDrafts(state: Pick<AppState, 'appMode' | 'activeAgentConversationId' | 'agentInputDrafts' | 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>) {
   if (state.appMode !== 'agent' || !state.activeAgentConversationId) return state.agentInputDrafts
   return setAgentInputDraft(state.agentInputDrafts, state.activeAgentConversationId, getCurrentAgentInputDraft(state))
 }
 
-function saveGalleryInputDraft(state: Pick<AppState, 'appMode' | 'galleryInputDraft' | 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>) {
+function saveGalleryInputDraft(state: Pick<AppState, 'appMode' | 'galleryInputDraft' | 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'>) {
   if (state.appMode !== 'gallery') return state.galleryInputDraft
   const draft = getCurrentAgentInputDraft(state)
   return isEmptyAgentInputDraft(draft) ? null : copyAgentInputDraft(draft)
@@ -1091,17 +1101,18 @@ function getPersistableGalleryInputDraft(state: AppState) {
   return saveGalleryInputDraft(state)
 }
 
-function restoreGalleryInputDraftState(draft: AgentInputDraft | null): Pick<AgentInputDraft, 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
+function restoreGalleryInputDraftState(draft: AgentInputDraft | null): Pick<AgentInputDraft, 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
   if (!draft) return clearInputDraftState()
   return {
     prompt: draft.prompt,
+    negativePrompt: draft.negativePrompt ?? '',
     inputImages: draft.inputImages.map((img) => ({ ...img })),
     maskDraft: draft.maskDraft ? { ...draft.maskDraft } : null,
     maskEditorImageId: draft.maskEditorImageId,
   }
 }
 
-function restoreAgentInputDraftState(drafts: Record<string, AgentInputDraft>, conversationId: string | null): Pick<AgentInputDraft, 'prompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
+function restoreAgentInputDraftState(drafts: Record<string, AgentInputDraft>, conversationId: string | null): Pick<AgentInputDraft, 'prompt' | 'negativePrompt' | 'inputImages' | 'maskDraft' | 'maskEditorImageId'> {
   const draft = conversationId ? drafts[conversationId] : null
   return restoreGalleryInputDraftState(draft ?? null)
 }
@@ -1112,6 +1123,7 @@ function syncActiveInputDraft<T extends Partial<AgentInputDraft>>(
 ): T & { agentInputDrafts?: Record<string, AgentInputDraft>; galleryInputDraft?: AgentInputDraft | null } {
   const draft: AgentInputDraft = {
     prompt: patch.prompt ?? state.prompt,
+    negativePrompt: patch.negativePrompt ?? state.negativePrompt,
     inputImages: patch.inputImages ?? state.inputImages,
     maskDraft: patch.maskDraft !== undefined ? patch.maskDraft : state.maskDraft,
     maskEditorImageId: patch.maskEditorImageId !== undefined ? patch.maskEditorImageId : state.maskEditorImageId,
@@ -1276,6 +1288,8 @@ export const useStore = create<AppState>()(
       // Input
       prompt: '',
       setPrompt: (prompt) => set((s) => syncActiveInputDraft(s, { prompt })),
+      negativePrompt: '',
+      setNegativePrompt: (negativePrompt) => set((s) => syncActiveInputDraft(s, { negativePrompt })),
       inputImages: [],
       addInputImage: (img) =>
         set((s) => {

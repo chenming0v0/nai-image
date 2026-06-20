@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo, useLayoutEffect } from 'react'
+﻿import { useRef, useEffect, useCallback, useState, useMemo, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { ALL_FAVORITES_COLLECTION_ID, deleteFavoriteCollection, getTaskFavoriteCollectionIds, useStore, submitTask, submitAgentMessage, stopAgentResponse, addImageFromFile, createInputImageFromFile, deleteImageIfUnreferenced, removeMultipleTasks, getCachedImage, ensureImageCached, getActiveAgentRounds, taskMatchesFilterStatus, taskMatchesSearchQuery } from '../store'
 import { DEFAULT_PARAMS, type TaskRecord } from '../types'
@@ -6,6 +6,7 @@ import { getActiveApiProfile, getAgentImageApiProfile, normalizeSettings } from 
 import { DEFAULT_FAL_IMAGE_SIZE, getChangedParams, getOutputImageLimitForSettings, normalizeParamsForSettings } from '../lib/paramCompatibility'
 import { getAtImageQuery, getImageMentionLabel, getPromptIndexFromVisibleIndex, getPromptMentionParts, getSelectedImageMentionLabel, getSelectedTextMentionLabel, imageMentionMatches, insertImageMentionAtVisibleRange, insertTextMentionAtVisibleRange, isCursorInSelectedImageMention, stripImageMentionMarkers } from '../lib/promptImageMentions'
 import { normalizeImageSize } from '../lib/size'
+import { formatNaiSizeLabel, normalizeNaiSize } from '../lib/naiSizes'
 import { createMaskPreviewDataUrl } from '../lib/canvasImage'
 import { getSafeBoundingClientRect } from '../lib/domRect'
 import { collectAgentRoundOutputImageSlots } from '../lib/agentImageReferences'
@@ -17,6 +18,7 @@ import ButtonTooltip from './input/buttonTooltip'
 import DragUploadOverlay from './input/dragUploadOverlay'
 import InputBatchBars from './input/inputBatchBars'
 import InputParamsPanel from './input/inputParamsPanel'
+import InputNaiParamsPanel from './input/inputNaiParamsPanel'
 
 
 function getMentionTagTextLength(el: Element) {
@@ -388,6 +390,8 @@ export default function InputBar() {
   const prompt = useStore((s) => s.prompt)
   const appMode = useStore((s) => s.appMode)
   const setPrompt = useStore((s) => s.setPrompt)
+  const negativePrompt = useStore((s) => s.negativePrompt)
+  const setNegativePrompt = useStore((s) => s.setNegativePrompt)
   const inputImages = useStore((s) => s.inputImages)
   const addInputImage = useStore((s) => s.addInputImage)
   const replaceInputImage = useStore((s) => s.replaceInputImage)
@@ -718,7 +722,11 @@ export default function InputBar() {
     ? maskDraft ? '遮罩编辑' : '生成图像'
     : '请先配置 API'
   const submitTooltipText = activeAgentIsRunning ? '停止生成' : '尚未完成 API 配置，请在右上角设置中进行'
-  const promptPlaceholder = '描述你想生成的图片，可输入 @ 来指定参考图...'
+  const isGalleryMode = appMode === 'gallery'
+  const promptPlaceholder = isGalleryMode
+    ? '正面提示词（英文）...'
+    : '描述你想生成的图片，可输入 @ 来指定参考图...'
+  const negativePromptPlaceholder = '负面提示词（英文）...'
   const submitCurrentMode = useCallback(() => {
     if (appMode === 'agent') {
       void submitAgentMessage()
@@ -756,9 +764,19 @@ export default function InputBar() {
     : isFalProvider
     ? `fal.ai 最大请求数量为 ${outputImageLimit}`
     : `OpenAI 最大请求数量为 ${outputImageLimit}`
-  const displaySize = isFalTextToImage && params.size === 'auto'
+  const displaySize = isGalleryMode
+    ? normalizeNaiSize(params.size)
+    : isFalTextToImage && params.size === 'auto'
     ? DEFAULT_FAL_IMAGE_SIZE
     : normalizeImageSize(params.size) || DEFAULT_PARAMS.size
+  const displaySizeLabel = isGalleryMode ? formatNaiSizeLabel(displaySize) : undefined
+
+  useEffect(() => {
+    if (!isGalleryMode) return
+    const next = normalizeNaiSize(params.size)
+    if (next !== params.size) setParams({ size: next })
+  }, [isGalleryMode, params.size, setParams])
+
 
   const qualityOptions = isFalProvider
     ? [
@@ -1884,6 +1902,17 @@ export default function InputBar() {
   }
 
   const renderParams = (cols: string) => (
+    isGalleryMode ? (
+      <InputNaiParamsPanel
+        cols={cols}
+        params={params}
+        setParams={setParams}
+        displaySize={displaySize}
+        displaySizeLabel={displaySizeLabel}
+        selectClass={selectClass}
+        onOpenSizePicker={() => setShowSizePicker(true)}
+      />
+    ) : (
     <InputParamsPanel
       cols={cols}
       params={params}
@@ -1892,6 +1921,7 @@ export default function InputBar() {
       isFalProvider={isFalProvider}
       isFalTextToImage={isFalTextToImage}
       displaySize={displaySize}
+      displaySizeLabel={displaySizeLabel}
       qualityOptions={qualityOptions}
       selectClass={selectClass}
       transparentOutputAvailable={transparentOutputAvailable}
@@ -1925,6 +1955,7 @@ export default function InputBar() {
       qualityHint={qualityHint}
       onOpenSizePicker={() => setShowSizePicker(true)}
     />
+    )
   )
 
   const showFavoriteCollectionBatchBar = inCollectionOverview && selectedFavoriteCollectionIds.length > 0
@@ -1936,10 +1967,10 @@ export default function InputBar() {
 
       {showSizePicker && (
         <SizePickerModal
-          currentSize={isFalTextToImage && params.size === 'auto' ? DEFAULT_FAL_IMAGE_SIZE : params.size}
-          onSelect={(size) => setParams({ size })}
+          currentSize={isGalleryMode ? displaySize : isFalTextToImage && params.size === 'auto' ? DEFAULT_FAL_IMAGE_SIZE : params.size}
+          onSelect={(size) => setParams({ size: isGalleryMode ? normalizeNaiSize(size) : size })}
           onClose={() => setShowSizePicker(false)}
-          allowAuto={!isFalTextToImage}
+          allowAuto={!isGalleryMode && !isFalTextToImage}
         />
       )}
 
@@ -1998,7 +2029,82 @@ export default function InputBar() {
           )}
 
           {/* 输入框 */}
-          <div className="relative grid">
+          {isGalleryMode ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="relative min-w-0">
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    const isModifier = e.ctrlKey || e.metaKey
+                    if (settings.enterSubmit) {
+                      if (e.shiftKey) {
+                        const el = e.currentTarget
+                        const start = el.selectionStart ?? prompt.length
+                        const end = el.selectionEnd ?? prompt.length
+                        const next = `${prompt.slice(0, start)}\n${prompt.slice(end)}`
+                        setPrompt(next)
+                        window.setTimeout(() => {
+                          el.selectionStart = el.selectionEnd = start + 1
+                        }, 0)
+                      } else if (!isModifier && canSubmit) {
+                        submitCurrentMode()
+                      }
+                    } else if (isModifier && canSubmit) {
+                      submitCurrentMode()
+                    } else {
+                      const el = e.currentTarget
+                      const start = el.selectionStart ?? prompt.length
+                      const end = el.selectionEnd ?? prompt.length
+                      const next = `${prompt.slice(0, start)}\n${prompt.slice(end)}`
+                      setPrompt(next)
+                      window.setTimeout(() => {
+                        el.selectionStart = el.selectionEnd = start + 1
+                      }, 0)
+                    }
+                  }}
+                  placeholder={promptPlaceholder}
+                  aria-label={promptPlaceholder}
+                  rows={3}
+                  className="min-h-[88px] w-full resize-y rounded-2xl border border-gray-200/60 bg-white/50 px-3 py-2.5 pr-9 text-sm leading-relaxed shadow-sm outline-none transition-[border-color,box-shadow] duration-200 focus:ring-1 focus:ring-blue-300/40 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-100 dark:focus:ring-blue-500/30"
+                />
+                {prompt.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearPrompt}
+                    className="absolute right-2 top-2 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.08] dark:hover:text-gray-200"
+                    title="清空正面提示词"
+                  >
+                    <CloseIcon className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="relative min-w-0">
+                <textarea
+                  value={negativePrompt}
+                  onChange={(e) => setNegativePrompt(e.target.value)}
+                  placeholder={negativePromptPlaceholder}
+                  aria-label={negativePromptPlaceholder}
+                  rows={3}
+                  className="min-h-[88px] w-full resize-y rounded-2xl border border-gray-200/60 bg-white/50 px-3 py-2.5 pr-9 text-sm leading-relaxed shadow-sm outline-none transition-[border-color,box-shadow] duration-200 focus:ring-1 focus:ring-rose-300/40 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-100 dark:focus:ring-rose-500/30"
+                />
+                {(negativePrompt?.length ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNegativePrompt('')}
+                    className="absolute right-2 top-2 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.08] dark:hover:text-gray-200"
+                    title="清空负面提示词"
+                  >
+                    <CloseIcon className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="relative grid">
+
             {showAtImageMenu && (
               <div style={{ left: `${menuLeft}px` }} className="absolute bottom-full z-50 mb-2 w-64 overflow-hidden rounded-2xl border border-gray-200/70 bg-white/95 p-1.5 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:border-white/[0.08] dark:bg-gray-900/95 dark:ring-white/10">
                 <div className="px-2 pb-1 pt-0.5 text-[11px] text-gray-400 dark:text-gray-500">选择图片引用</div>
@@ -2092,13 +2198,14 @@ export default function InputBar() {
                 <CloseIcon className="w-3.5 h-3.5" />
               </button>
             )}
-          </div>
+            </div>
+          )}
 
           {/* 参数 + 按钮 */}
           <div className="mt-3">
             {/* 桌面端布局 */}
             <div className="hidden sm:flex items-end justify-between gap-3">
-              {renderParams('grid-cols-6')}
+              {renderParams(isGalleryMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-6')}
 
               <div className="flex gap-2 flex-shrink-0 mb-0.5">
                 <div
@@ -2157,7 +2264,7 @@ export default function InputBar() {
             <div className="sm:hidden flex flex-col gap-2">
               <div className={`collapse-section${mobileCollapsed ? ' collapsed' : ''}`}>
                 <div className="collapse-inner">
-                  {renderParams('grid-cols-2')}
+                  {renderParams(isGalleryMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2')}
                   <div className="h-2" />
                 </div>
               </div>

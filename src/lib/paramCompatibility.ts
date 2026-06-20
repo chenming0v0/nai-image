@@ -1,6 +1,8 @@
 import { DEFAULT_PARAMS, type AppSettings, type TaskParams } from '../types'
 import { getActiveApiProfile } from './apiProfiles'
 import { normalizeImageSize } from './size'
+import { normalizeNaiSize } from './naiSizes'
+import { clampNaiScale, clampNaiSteps } from './naiDrawParams'
 
 export const DEFAULT_FAL_IMAGE_SIZE = '1360x1024'
 export const MAX_FAL_OUTPUT_IMAGES = 4
@@ -19,7 +21,9 @@ export function normalizeParamsForSettings(
   const outputImageLimit = getOutputImageLimitForSettings(settings)
   const nextParams: TaskParams = {
     ...params,
-    size: normalizeImageSize(params.size) || DEFAULT_PARAMS.size,
+    size: activeProfile.provider === 'fal'
+      ? (normalizeImageSize(params.size) || DEFAULT_PARAMS.size)
+      : normalizeNaiSize(params.size),
     n: Math.min(outputImageLimit, Math.max(1, params.n || DEFAULT_PARAMS.n)),
   }
 
@@ -32,6 +36,18 @@ export function normalizeParamsForSettings(
     if (nextParams.quality === 'auto') nextParams.quality = 'high'
     nextParams.moderation = DEFAULT_PARAMS.moderation
     nextParams.output_compression = DEFAULT_PARAMS.output_compression
+  }
+
+
+  if (activeProfile.provider !== 'fal') {
+    nextParams.size = normalizeNaiSize(nextParams.size)
+    nextParams.steps = clampNaiSteps(nextParams.steps ?? DEFAULT_PARAMS.steps ?? 23)
+    nextParams.scale = clampNaiScale(nextParams.scale ?? DEFAULT_PARAMS.scale ?? 5)
+    if (!nextParams.sampler) nextParams.sampler = DEFAULT_PARAMS.sampler
+    if (!nextParams.noise_schedule) nextParams.noise_schedule = DEFAULT_PARAMS.noise_schedule
+    if (!nextParams.image_format) nextParams.image_format = DEFAULT_PARAMS.image_format
+    if (nextParams.seed === undefined) nextParams.seed = null
+    if (nextParams.variety_boost === undefined) nextParams.variety_boost = false
   }
 
   if (nextParams.output_format === 'png') {

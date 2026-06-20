@@ -19,6 +19,7 @@ export default function InputParamsPanel({
   isFalProvider,
   isFalTextToImage,
   displaySize,
+  displaySizeLabel,
   qualityOptions,
   selectClass,
   transparentOutputAvailable,
@@ -59,6 +60,7 @@ export default function InputParamsPanel({
   isFalProvider: boolean
   isFalTextToImage: boolean
   displaySize: string
+  displaySizeLabel?: string
   qualityOptions: Array<{ label: string; value: string }>
   selectClass: string
   transparentOutputAvailable: boolean
@@ -110,7 +112,7 @@ export default function InputParamsPanel({
           className="px-3 py-1.5 rounded-xl border border-gray-200/60 dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] focus:outline-none text-xs text-left transition-all duration-200 shadow-sm font-mono"
           title="选择尺寸"
         >
-          {displaySize}
+          {displaySizeLabel ?? displaySize}
         </button>
         <ButtonTooltip
           visible={isFalTextToImage && sizeHint.visible}
