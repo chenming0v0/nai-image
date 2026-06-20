@@ -117,6 +117,22 @@ export interface AppSettings {
   activeProfileId: string
 }
 
+export type NaiCharacterPosition =
+  | 'A1' | 'B1' | 'C1' | 'D1' | 'E1'
+  | 'A2' | 'B2' | 'C2' | 'D2' | 'E2'
+  | 'A3' | 'B3' | 'C3' | 'D3' | 'E3'
+  | 'A4' | 'B4' | 'C4' | 'D4' | 'E4'
+  | 'A5' | 'B5' | 'C5' | 'D5' | 'E5'
+
+export interface CharacterSlot {
+  id: string
+  prompt: string
+  negative_prompt: string
+  position: NaiCharacterPosition
+}
+
+export const DEFAULT_CHARACTER_POSITION: NaiCharacterPosition = 'C3'
+
 // ===== 任务参数 =====
 
 export interface TaskParams {

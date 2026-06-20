@@ -668,6 +668,9 @@ describe('agent conversation persistence', () => {
           maskDraft: null,
           maskEditorImageId: null,
           updatedAt: Date.now(),
+          characters: [],
+          use_coords: true,
+          use_order: false,
         },
       },
       prompt: '',
@@ -1242,6 +1245,9 @@ describe('agent draft lifecycle', () => {
           inputImages: draftState.inputImages,
           maskDraft: draftState.maskDraft,
           maskEditorImageId: imageA.id,
+          characters: [],
+          use_coords: true,
+          use_order: false,
         },
       },
     })
@@ -1270,6 +1276,9 @@ describe('agent draft lifecycle', () => {
         inputImages: [imageB],
         maskDraft: null,
         maskEditorImageId: null,
+        characters: [],
+        use_coords: true,
+        use_order: false,
       },
     })
 
@@ -1332,9 +1341,9 @@ describe('agent draft lifecycle', () => {
     const now = 10 * 24 * 60 * 60 * 1000
     const staleUpdatedAt = now - 3 * 24 * 60 * 60 * 1000 - 1
     const recentUpdatedAt = now - 3 * 24 * 60 * 60 * 1000
-    const activeDraft = { prompt: 'active', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: staleUpdatedAt }
-    const staleDraft = { prompt: 'stale', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: staleUpdatedAt }
-    const recentDraft = { prompt: 'recent', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: recentUpdatedAt }
+    const activeDraft = { prompt: 'active', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: staleUpdatedAt, characters: [], use_coords: true, use_order: false }
+    const staleDraft = { prompt: 'stale', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: staleUpdatedAt, characters: [], use_coords: true, use_order: false }
+    const recentDraft = { prompt: 'recent', inputImages: [], maskDraft: null, maskEditorImageId: null, updatedAt: recentUpdatedAt, characters: [], use_coords: true, use_order: false }
 
     const cleaned = cleanStaleAgentInputDrafts({
       'conversation-a': activeDraft,
