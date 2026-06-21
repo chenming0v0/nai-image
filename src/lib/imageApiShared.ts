@@ -1,4 +1,4 @@
-import type { AppSettings, TaskParams } from '../types'
+import type { AppSettings, CharacterSlot, TaskParams } from '../types'
 import { blobToDataUrl } from './dataUrl'
 
 export const MIME_MAP: Record<string, string> = {
@@ -13,6 +13,10 @@ export const MAX_IMAGE_INPUT_PAYLOAD_BYTES = 512 * 1024 * 1024
 export interface CallApiOptions {
   settings: AppSettings
   prompt: string
+  negativePrompt?: string
+  characters?: CharacterSlot[]
+  use_coords?: boolean
+  use_order?: boolean
   params: TaskParams
   /** 输入图片的 data URL 列表 */
   inputImageDataUrls: string[]

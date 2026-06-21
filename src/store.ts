@@ -1327,7 +1327,7 @@ export const useStore = create<AppState>()(
                   apiKey: incoming.apiKey ?? profile.apiKey,
                   model: incoming.model ?? profile.model,
                   timeout: incoming.timeout ?? profile.timeout,
-                  apiMode: incoming.apiMode === 'images' || incoming.apiMode === 'responses' ? incoming.apiMode : profile.apiMode,
+                  apiMode: incoming.apiMode === 'images' || incoming.apiMode === 'responses' || incoming.apiMode === 'chat' ? incoming.apiMode : profile.apiMode,
                   codexCli: incoming.codexCli ?? profile.codexCli,
                   apiProxy: incoming.apiProxy ?? profile.apiProxy,
                   streamImages: incoming.streamImages ?? profile.streamImages,
@@ -1995,7 +1995,9 @@ function isApiRequestNetworkError(err: unknown): boolean {
 }
 
 function getApiModeApiName(apiMode: ApiMode) {
-  return apiMode === 'responses' ? 'Responses API' : 'Image API'
+  if (apiMode === 'responses') return 'Responses API'
+  if (apiMode === 'chat') return 'Chat Completions API'
+  return 'Image API'
 }
 
 function getApiRequestNetworkErrorHint(
@@ -2514,6 +2516,10 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
   const task: TaskRecord = {
     id: taskId,
     prompt: prompt.trim(),
+    negativePrompt: useStore.getState().negativePrompt?.trim() || undefined,
+    characters: useStore.getState().characters.filter((character) => character.prompt.trim()).map((character) => ({ ...character })),
+    use_coords: useStore.getState().use_coords,
+    use_order: useStore.getState().use_order,
     params: taskParams,
     apiProvider: activeProfile.provider,
     apiProfileId: activeProfile.id,
@@ -4445,6 +4451,10 @@ async function executeTask(taskId: string) {
     const result = await callImageApi({
       settings: requestSettings,
       prompt: replaceImageMentionsForApi(requestPrompt, inputDataUrls.length),
+      negativePrompt: task.negativePrompt,
+      characters: task.characters,
+      use_coords: task.use_coords,
+      use_order: task.use_order,
       params: task.params,
       inputImageDataUrls: inputDataUrls,
       maskDataUrl,

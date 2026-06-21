@@ -1,6 +1,6 @@
 // ===== 设置 =====
 
-export type ApiMode = 'images' | 'responses'
+export type ApiMode = 'images' | 'responses' | 'chat'
 export type AppMode = 'gallery' | 'agent'
 export type AgentApiConfigMode = 'off' | 'native' | 'hybrid'
 export type ReferenceImageEditAction = 'ask' | 'replace-reference' | 'add-mask'
@@ -207,6 +207,10 @@ export type TaskStatus = 'running' | 'done' | 'error'
 export interface TaskRecord {
   id: string
   prompt: string
+  negativePrompt?: string
+  characters?: CharacterSlot[]
+  use_coords?: boolean
+  use_order?: boolean
   params: TaskParams
   /** 生成时使用的 Provider 类型 */
   apiProvider?: ApiProvider

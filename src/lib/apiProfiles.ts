@@ -29,6 +29,7 @@ const DEFAULT_BASE_URL = isImportableConfigUrl(RAW_DEFAULT_API_URL)
   : RAW_DEFAULT_API_URL || (DOCKER_DEPLOYMENT && DEFAULT_OPENAI_API_PROXY ? '' : OPENAI_DEFAULT_BASE_URL)
 export const DEFAULT_IMAGES_MODEL = 'gpt-image-2'
 export const DEFAULT_RESPONSES_MODEL = 'gpt-5.5'
+export const DEFAULT_CHAT_MODEL = 'nai-diffusion-4-5-full'
 export const DEFAULT_FAL_BASE_URL = 'https://fal.run'
 export const DEFAULT_FAL_MODEL = 'openai/gpt-image-2'
 export const DEFAULT_OPENAI_PROFILE_ID = 'default-openai'
@@ -64,6 +65,10 @@ type ApiProfileProviderDraft = NonNullable<ApiProfile['providerDrafts']>[ApiProv
 
 function getDefaultStreamImages(provider: ApiProvider, apiMode: ApiMode): boolean {
   return provider === 'openai' && apiMode === 'responses'
+}
+
+function normalizeApiMode(value: unknown): ApiMode | undefined {
+  return value === 'images' || value === 'responses' || value === 'chat' ? value : undefined
 }
 
 export function normalizeStreamPartialImages(value: unknown, fallback: number | undefined = DEFAULT_STREAM_PARTIAL_IMAGES): number {
@@ -434,7 +439,7 @@ function normalizeProviderDraft(input: unknown, provider: ApiProvider, customPro
   const fallback = provider === 'fal' ? createDefaultFalProfile() : createDefaultOpenAIProfile()
   const baseUrl = typeof input.baseUrl === 'string' ? input.baseUrl : undefined
   const model = typeof input.model === 'string' && input.model.trim() ? input.model : undefined
-  const apiMode = input.apiMode === 'responses' ? 'responses' : input.apiMode === 'images' ? 'images' : undefined
+  const apiMode = normalizeApiMode(input.apiMode)
   const knownProvider = provider === 'fal' || provider === 'openai' || customProviderIds.has(provider)
   if (!knownProvider) return undefined
 
@@ -465,7 +470,7 @@ export function normalizeApiProfile(input: unknown, fallback?: Partial<ApiProfil
   const record = input && typeof input === 'object' ? input as Record<string, unknown> : {}
   const rawProvider = typeof record.provider === 'string' ? record.provider : ''
   const provider: ApiProvider = rawProvider === 'fal' || customProviderIds.has(rawProvider) ? rawProvider : 'openai'
-  const apiMode: ApiMode = provider === 'openai' && record.apiMode === 'responses' ? 'responses' : 'images'
+  const apiMode: ApiMode = provider === 'openai' ? normalizeApiMode(record.apiMode) ?? 'images' : 'images'
   const defaults = provider === 'fal'
     ? createDefaultFalProfile(fallback)
     : createDefaultOpenAIProfile({ ...fallback, apiMode })
@@ -501,8 +506,8 @@ function validateImportedProfileRecord(input: unknown) {
     throw new Error('JSON 包含 Markdown 链接，请粘贴纯文本')
   }
 
-  if (typeof input.apiMode === 'string' && input.apiMode !== 'images' && input.apiMode !== 'responses') {
-    throw new Error('apiMode 格式无效，应为 images 或 responses')
+  if (typeof input.apiMode === 'string' && !normalizeApiMode(input.apiMode)) {
+    throw new Error('apiMode 格式无效，应为 images、responses 或 chat')
   }
 }
 
@@ -510,7 +515,7 @@ export function normalizeSettings(input: Partial<AppSettings> | unknown): AppSet
   const record = input && typeof input === 'object' ? input as Record<string, unknown> : {}
   const customProviders = normalizeCustomProviderDefinitions(record.customProviders)
   const customProviderIds = new Set(customProviders.map((provider) => provider.id))
-  const legacyApiMode: ApiMode = record.apiMode === 'responses' ? 'responses' : 'images'
+  const legacyApiMode: ApiMode = normalizeApiMode(record.apiMode) ?? 'images'
   const legacyProfile = createDefaultOpenAIProfile({
     baseUrl: typeof record.baseUrl === 'string' ? record.baseUrl : DEFAULT_BASE_URL,
     apiKey: typeof record.apiKey === 'string' ? record.apiKey : '',
@@ -663,8 +668,8 @@ export function getActiveApiProfile(settings: Partial<AppSettings> | unknown): A
   const record = settings && typeof settings === 'object' ? settings as Record<string, unknown> : {}
   const normalized = normalizeSettings(settings)
   const profile = normalized.profiles.find((p) => p.id === normalized.activeProfileId) ?? normalized.profiles[0] ?? createDefaultOpenAIProfile()
-  const apiMode = profile.provider === 'openai' && (record.apiMode === 'images' || record.apiMode === 'responses')
-    ? record.apiMode
+  const apiMode = profile.provider === 'openai'
+    ? normalizeApiMode(record.apiMode) ?? profile.apiMode
     : profile.apiMode
 
   return {

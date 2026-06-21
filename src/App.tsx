@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { initStore } from './store'
 import { useStore } from './store'
 import { activateFirstImportedProfile, buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './lib/urlSettings'
@@ -8,7 +8,7 @@ import { useDockerApiUrlMigrationNotice } from './hooks/useDockerApiUrlMigration
 import type { AppSettings } from './types'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
-import GalleryCharacterRail from './components/GalleryCharacterRail'
+import GalleryCharacterRail, { GalleryCharacterOverview } from './components/GalleryCharacterRail'
 import TaskGrid from './components/TaskGrid'
 import AgentWorkspace from './components/AgentWorkspace'
 import InputBar from './components/InputBar'
@@ -122,6 +122,7 @@ export default function App() {
                 <SearchBar />
                 {filterFavorite && !activeFavoriteCollectionId ? <FavoriteCollectionsView /> : <TaskGrid />}
               </div>
+              <GalleryCharacterOverview />
             </div>
           </div>
         </main>

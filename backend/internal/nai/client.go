@@ -25,9 +25,10 @@ func NewClient(timeout time.Duration) *Client {
 	}
 }
 
-// normalizeBaseURL 去掉末尾斜杠。
+// normalizeBaseURL 去掉末尾斜杠，并兼容用户填写到 /v1 的地址。
 func normalizeBaseURL(url string) string {
-	return strings.TrimRight(url, "/")
+	url = strings.TrimRight(url, "/")
+	return strings.TrimSuffix(url, "/v1")
 }
 
 // ModelsResult 是 GetModels 的结果。

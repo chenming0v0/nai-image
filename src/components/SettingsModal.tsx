@@ -7,6 +7,7 @@ import {
   createDefaultOpenAIProfile,
   DEFAULT_FAL_BASE_URL,
   DEFAULT_FAL_MODEL,
+  DEFAULT_CHAT_MODEL,
   DEFAULT_IMAGES_MODEL,
   DEFAULT_OPENAI_PROFILE_ID,
   DEFAULT_RESPONSES_MODEL,
@@ -355,6 +356,9 @@ export default function SettingsModal() {
   const profileTouchDragRef = useRef<{ id: string, startX: number, startY: number, moved: boolean } | null>(null)
   const [copyImportUrlProfile, setCopyImportUrlProfile] = useState<ApiProfile | null>(null)
   const [copyImportUrlOptions, setCopyImportUrlOptions] = useState<CopyImportUrlOptions>(readCopyImportUrlOptions)
+  const [modelOptions, setModelOptions] = useState<string[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [modelsError, setModelsError] = useState<string | null>(null)
 
   const apiProxyConfig = readClientDevProxyConfig()
   const apiProxyAvailable = isApiProxyAvailable(apiProxyConfig)
@@ -401,7 +405,7 @@ export default function SettingsModal() {
   ]
 
   const getDefaultModelForMode = (apiMode: AppSettings['apiMode']) =>
-    apiMode === 'responses' ? DEFAULT_RESPONSES_MODEL : DEFAULT_IMAGES_MODEL
+    apiMode === 'responses' ? DEFAULT_RESPONSES_MODEL : apiMode === 'chat' ? DEFAULT_CHAT_MODEL : DEFAULT_IMAGES_MODEL
 
   const enabledZipDownloadRouteCount = ZIP_DOWNLOAD_ROUTE_OPTIONS
     .filter((option) => draft.zipDownloadRoutes.includes(option.route))
@@ -457,6 +461,11 @@ export default function SettingsModal() {
   useEffect(() => {
     setTimeoutInput(String(activeProfile.timeout))
   }, [activeProfile.id, activeProfile.timeout])
+
+  useEffect(() => {
+    setModelOptions([])
+    setModelsError(null)
+  }, [activeProfile.id])
 
   useEffect(() => {
     if (showSettings && settingsTabRequest) setActiveTab(settingsTabRequest)
@@ -670,6 +679,55 @@ export default function SettingsModal() {
   const commitActiveProfilePatch = (patch: Partial<ApiProfile>) => {
     const nextDraft = getDraftWithActiveProfilePatch(patch)
     commitSettings(nextDraft)
+  }
+
+  const syncActiveProfileToBackend = async () => {
+    const baseUrl = activeProfile.baseUrl.trim()
+    const apiKey = activeProfile.apiKey.trim()
+    const model = activeProfile.model.trim() || getDefaultModelForMode(activeProfile.apiMode)
+    if (!baseUrl || !apiKey) throw new Error('请先填写 API 地址和 API Key')
+
+    const response = await fetch('http://127.0.0.1:8787/api/settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        upstream_base_url: normalizeBaseUrl(baseUrl),
+        upstream_api_key: apiKey,
+        default_model: model,
+        request_timeout_seconds: Number(activeProfile.timeout) || DEFAULT_SETTINGS.timeout,
+      }),
+    })
+    if (!response.ok) throw new Error(`保存后端配置失败 HTTP ${response.status}`)
+  }
+
+  const refreshModelOptions = async () => {
+    setModelsLoading(true)
+    setModelsError(null)
+    try {
+      await syncActiveProfileToBackend()
+      const response = await fetch('http://127.0.0.1:8787/api/models')
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const payload = await response.json()
+      const ids: string[] = Array.isArray(payload?.data)
+        ? payload.data
+            .map((item: unknown) => item && typeof item === 'object' && 'id' in item ? String((item as { id?: unknown }).id ?? '').trim() : '')
+            .filter((id: string) => Boolean(id))
+        : []
+      const nextOptions = Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+      if (!nextOptions.length) throw new Error('后端没有返回可用模型')
+
+      setModelOptions(nextOptions)
+      showToast(`已获取 ${nextOptions.length} 个模型`, 'success')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '获取模型失败，请确认 Go 后端已启动'
+      setModelsError(msg)
+      showToast(`获取模型失败：${msg}`, 'error')
+    } finally {
+      setModelsLoading(false)
+    }
   }
 
   const handleClose = () => {
@@ -1574,19 +1632,20 @@ export default function SettingsModal() {
                     onChange={(value) => {
                       const apiMode = value as AppSettings['apiMode']
                       const nextModel =
-                        activeProfile.model === DEFAULT_IMAGES_MODEL || activeProfile.model === DEFAULT_RESPONSES_MODEL
+                        activeProfile.model === DEFAULT_IMAGES_MODEL || activeProfile.model === DEFAULT_RESPONSES_MODEL || activeProfile.model === DEFAULT_CHAT_MODEL
                           ? getDefaultModelForMode(apiMode)
                           : activeProfile.model
                       updateActiveProfile({ apiMode, model: nextModel }, true)
                     }}
                     options={[
+                      { label: 'Chat Completions (/v1/chat/completions)', value: 'chat' },
                       { label: 'Images API (/v1/images)', value: 'images' },
                       { label: 'Responses API (/v1/responses)', value: 'responses' },
                     ]}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-blue-300 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:focus:border-blue-500/50"
                   />
                   <div data-selectable-text className="mt-1.5 text-xs text-gray-500 dark:text-gray-500">
-                    支持通过查询参数覆盖：<code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">apiMode=images</code> 或 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">apiMode=responses</code>。
+                    支持通过查询参数覆盖：<code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">apiMode=chat</code>、<code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">apiMode=images</code> 或 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">apiMode=responses</code>。
                   </div>
                 </div>
               )}
@@ -1604,6 +1663,29 @@ export default function SettingsModal() {
                   placeholder={activeProfile.provider === 'fal' ? DEFAULT_FAL_MODEL : getDefaultModelForMode(activeProfile.apiMode ?? DEFAULT_SETTINGS.apiMode)}
                   className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-blue-300 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:focus:border-blue-500/50"
                 />
+                {activeProfile.provider === 'openai' && (
+                  <div className="mt-2 flex gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        value={activeProfile.model}
+                        onChange={(value) => updateActiveProfile({ model: String(value) }, true)}
+                        disabled={modelsLoading || modelOptions.length === 0}
+                        options={(modelOptions.includes(activeProfile.model) ? modelOptions : [activeProfile.model, ...modelOptions])
+                          .filter(Boolean)
+                          .map((model) => ({ label: model, value: model }))}
+                        className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-xs text-gray-700 outline-none transition focus:border-blue-300 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:focus:border-blue-500/50"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={refreshModelOptions}
+                      disabled={modelsLoading}
+                      className="shrink-0 rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/[0.07]"
+                    >
+                      {modelsLoading ? '刷新中...' : '刷新模型'}
+                    </button>
+                  </div>
+                )}
                 <div data-selectable-text className="mt-1.5 text-xs text-gray-500 dark:text-gray-500">
                   {activeProfile.provider === 'fal' ? (
                     <>当前适配 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">{DEFAULT_FAL_MODEL}</code>。</>
@@ -1611,11 +1693,16 @@ export default function SettingsModal() {
                     <>当前使用 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">{activeCustomProvider.name}</code>。</>
                   ) : (activeProfile.apiMode ?? DEFAULT_SETTINGS.apiMode) === 'responses' ? (
                     <>Responses API 需要使用支持 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">image_generation</code> 工具的文本模型，例如 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">{DEFAULT_RESPONSES_MODEL}</code>。</>
+                  ) : (activeProfile.apiMode ?? DEFAULT_SETTINGS.apiMode) === 'chat' ? (
+                    <>Chat 接口会请求 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">/v1/chat/completions</code>，NAI 默认模型可用 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">{DEFAULT_CHAT_MODEL}</code>。</>
                   ) : (
                     <>Images API 需要使用 GPT Image 模型，例如 <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">{DEFAULT_IMAGES_MODEL}</code>。</>
                   )}
                   {activeProfile.provider === 'openai' && (
                     <>支持通过查询参数覆盖：<code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">?model=</code>。</>
+                  )}
+                  {modelsError && (
+                    <span className="ml-1 text-red-500 dark:text-red-400">模型列表：{modelsError}</span>
                   )}
                 </div>
               </label>
