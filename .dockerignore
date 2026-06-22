@@ -1,7 +1,53 @@
+# 依赖
 node_modules
+vendor
+
+# 构建产物
 dist
+build
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试
+*.test
+coverage
+
+# 开发文件
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Git
 .git
 .gitignore
-*.md
+.github
+
+# 文档
+docs
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 后端数据
+backend/data
+*.db
+*.db-shm
+*.db-wal
+
+# 前端开发
+src/**/*.test.tsx
+src/**/*.test.ts
+scripts/mock-image-api.mjs
+dev-proxy.config.json
+
+# Docker 文件
 Dockerfile
 .dockerignore

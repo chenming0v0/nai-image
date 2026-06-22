@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nai-image-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8787}:8787"
+    volumes:
+      - ./backend/data:/app/data
+    environment:
+      - PORT=8787
+      - DB_PATH=/app/data/nai.db
+      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-}
+      - UPSTREAM_API_KEY=${UPSTREAM_API_KEY:-}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-nai-diffusion-4-5-full}
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-180}
+      - MAX_IMAGE_BYTES=${MAX_IMAGE_BYTES:-536870912}
+    networks:
+      - nai-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 前端服务
+  frontend:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-8787}
+    container_name: nai-image-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+    networks:
+      - nai-network
+    environment:
+      - DEFAULT_API_URL=http://backend:8787
+      - ENABLE_API_PROXY=false
+
+networks:
+  nai-network:
+    driver: bridge
+
+volumes:
+  backend-data:
