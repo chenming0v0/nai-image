@@ -29,6 +29,7 @@ export default defineConfig(({ command }) => {
     },
     server: {
       host: true,
+      port: 5111,
       proxy:
         devProxyConfig?.enabled
           ? {

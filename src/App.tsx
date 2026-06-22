@@ -114,16 +114,14 @@ export default function App() {
       {appMode === 'agent' ? (
         <AgentWorkspace />
       ) : (
-        <main data-home-main data-drag-select-surface className="pb-48">
-          <div className="safe-area-x max-w-7xl mx-auto">
-            <div className="lg:flex lg:items-start lg:gap-6">
-              <GalleryCharacterRail />
-              <div className="min-w-0 flex-1">
-                <SearchBar />
-                {filterFavorite && !activeFavoriteCollectionId ? <FavoriteCollectionsView /> : <TaskGrid />}
-              </div>
-              <GalleryCharacterOverview />
+        <main data-home-main data-drag-select-surface className="fixed inset-0 top-20">
+          <div className="safe-area-x max-w-[1600px] mx-auto h-full flex lg:gap-6">
+            <GalleryCharacterRail />
+            <div className="min-w-0 flex-1 overflow-y-auto hide-scrollbar pb-48">
+              <SearchBar />
+              {filterFavorite && !activeFavoriteCollectionId ? <FavoriteCollectionsView /> : <TaskGrid />}
             </div>
+            <GalleryCharacterOverview />
           </div>
         </main>
       )}

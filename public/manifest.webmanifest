@@ -1,7 +1,7 @@
 {
-  "name": "GPT Image Playground",
-  "short_name": "GPT Image",
-  "description": "GPT Image Playground 图像生成工作台",
+  "name": "NAI Image Client",
+  "short_name": "NAI Image",
+  "description": "NovelAI 图像生成客户端",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

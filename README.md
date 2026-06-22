@@ -107,29 +107,47 @@ FRONTEND_PORT=8080
 - Node.js 20+
 - Go 1.23+
 
-**启动后端**：
+**一键启动前后端（推荐）**：
 
 ```bash
-cd backend
-go run ./cmd/server
-```
-
-后端默认监听 `http://127.0.0.1:8787`。
-
-**启动前端**：
-
-```bash
-# 安装依赖
+# 安装依赖（仅第一次）
 npm install
 
-# 开发模式
-npm run dev
-
-# 生产构建
-npm run build
+# 一键启动前端 + 后端
+npm start
 ```
 
-前端开发服务器默认 `http://localhost:5173`。
+访问 http://localhost:5111 即可使用。后端 API 自动运行在 http://localhost:8787。
+
+**分别启动**：
+
+```bash
+# 启动后端
+npm run dev:backend
+# 或
+cd backend
+go run ./cmd/server
+
+# 启动前端（新终端）
+npm run dev:frontend
+# 或
+npm run dev
+```
+
+**生产构建**：
+
+```bash
+# 构建前端
+npm run build
+
+# 构建后端
+npm run build:backend
+
+# 或一次性构建全部
+npm run build:all
+```
+
+**详细的开发指南**：查看 [DEV_GUIDE.md](DEV_GUIDE.md)
 
 ### 方式三：仅前端部署（Vercel/Cloudflare）
 
