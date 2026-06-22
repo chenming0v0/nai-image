@@ -814,8 +814,12 @@ interface AppState {
   use_order: boolean
   setCharacters: (chars: CharacterSlot[]) => void
   addCharacter: () => void
+  insertCharacter: (character: CharacterSlot, index: number) => void
   updateCharacter: (id: string, patch: Partial<CharacterSlot>) => void
   removeCharacter: (id: string) => void
+  deletedCharacter: { character: CharacterSlot; index: number } | null
+  setDeletedCharacter: (deleted: { character: CharacterSlot; index: number } | null) => void
+  undoDeleteCharacter: () => void
   setUseCoords: (v: boolean) => void
   setUseOrder: (v: boolean) => void
   inputImages: InputImage[]
@@ -1362,10 +1366,30 @@ export const useStore = create<AppState>()(
       use_order: false,
       setCharacters: (characters) => set((s) => syncActiveInputDraft(s, { characters })),
       addCharacter: () => set((s) => syncActiveInputDraft(s, { characters: [...s.characters, newCharacterSlot()] })),
+      insertCharacter: (character, index) => set((s) => {
+        const newCharacters = [...s.characters]
+        newCharacters.splice(index, 0, character)
+        return syncActiveInputDraft(s, { characters: newCharacters })
+      }),
       updateCharacter: (id, patch) => set((s) => syncActiveInputDraft(s, {
         characters: s.characters.map((c) => (c.id === id ? { ...c, ...patch } : c)),
       })),
-      removeCharacter: (id) => set((s) => syncActiveInputDraft(s, { characters: s.characters.filter((c) => c.id !== id) })),
+      removeCharacter: (id) => set((s) => {
+        const index = s.characters.findIndex(c => c.id === id)
+        if (index === -1) return s
+        const character = s.characters[index]
+        // 保存删除的角色用于撤回
+        const nextState = syncActiveInputDraft(s, { characters: s.characters.filter((c) => c.id !== id) })
+        return { ...nextState, deletedCharacter: { character, index } }
+      }),
+      deletedCharacter: null,
+      setDeletedCharacter: (deletedCharacter) => set({ deletedCharacter }),
+      undoDeleteCharacter: () => set((s) => {
+        if (!s.deletedCharacter) return s
+        const newCharacters = [...s.characters]
+        newCharacters.splice(s.deletedCharacter.index, 0, s.deletedCharacter.character)
+        return { ...syncActiveInputDraft(s, { characters: newCharacters }), deletedCharacter: null }
+      }),
       setUseCoords: (use_coords) => set((s) => syncActiveInputDraft(s, { use_coords })),
       setUseOrder: (use_order) => set((s) => syncActiveInputDraft(s, { use_order })),
       inputImages: [],

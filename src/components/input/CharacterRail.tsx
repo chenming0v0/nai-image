@@ -55,14 +55,24 @@ export default function CharacterRail({
       </div>
 
       {/* 选项栏 - 固定 */}
-      <div className="flex-shrink-0 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-300/50 bg-white/35 px-3 py-2 text-[11px] text-gray-600 shadow-sm dark:border-white/[0.07] dark:bg-white/[0.03] dark:text-gray-400 mb-3">
-        <label className="flex cursor-pointer items-center gap-1.5">
-          <input type="checkbox" checked={useCoords} onChange={(e) => onUseCoordsChange(e.target.checked)} className="rounded" />
-          Manual coords
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-2 mb-3">
+        <label className="group flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300/40 bg-white/40 px-3 py-1.5 text-[11px] text-gray-700 shadow-sm backdrop-blur-md transition-all hover:border-cyan-400/50 hover:bg-white/50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-gray-300 dark:hover:border-cyan-400/40 dark:hover:bg-white/[0.10] has-[:checked]:border-cyan-400/60 has-[:checked]:bg-cyan-50/50 has-[:checked]:text-cyan-700 has-[:checked]:backdrop-blur-xl dark:has-[:checked]:border-cyan-400/50 dark:has-[:checked]:bg-cyan-500/15 dark:has-[:checked]:text-cyan-300">
+          <input
+            type="checkbox"
+            checked={useCoords}
+            onChange={(e) => onUseCoordsChange(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-gray-300 text-cyan-600 transition focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.15] dark:bg-white/[0.05] dark:checked:bg-cyan-500 dark:checked:border-cyan-500"
+          />
+          使用坐标
         </label>
-        <label className="flex cursor-pointer items-center gap-1.5">
-          <input type="checkbox" checked={useOrder} onChange={(e) => onUseOrderChange(e.target.checked)} className="rounded" />
-          Order matters
+        <label className="group flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300/40 bg-white/40 px-3 py-1.5 text-[11px] text-gray-700 shadow-sm backdrop-blur-md transition-all hover:border-cyan-400/50 hover:bg-white/50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-gray-300 dark:hover:border-cyan-400/40 dark:hover:bg-white/[0.10] has-[:checked]:border-cyan-400/60 has-[:checked]:bg-cyan-50/50 has-[:checked]:text-cyan-700 has-[:checked]:backdrop-blur-xl dark:has-[:checked]:border-cyan-400/50 dark:has-[:checked]:bg-cyan-500/15 dark:has-[:checked]:text-cyan-300">
+          <input
+            type="checkbox"
+            checked={useOrder}
+            onChange={(e) => onUseOrderChange(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-gray-300 text-cyan-600 transition focus:ring-2 focus:ring-cyan-500/20 dark:border-white/[0.15] dark:bg-white/[0.05] dark:checked:bg-cyan-500 dark:checked:border-cyan-500"
+          />
+          按顺序排序
         </label>
       </div>
 
@@ -80,10 +90,10 @@ export default function CharacterRail({
                 <motion.div
                   key={c.id}
                   layout
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.90, transition: { duration: 0.2 } }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                   className="relative overflow-hidden rounded-2xl border border-gray-300/70 bg-white/58 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.08)] ring-1 ring-white/50 backdrop-blur-xl dark:border-white/[0.10] dark:bg-white/[0.05] dark:ring-white/[0.04]"
                 >
                   <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l-xl" style={{ background: characterColor(i) }} />
@@ -92,7 +102,7 @@ export default function CharacterRail({
                       <span className="h-2 w-2 rounded-full" style={{ background: characterColor(i) }} />
                       <span className="font-mono text-[10px] uppercase tracking-wider text-gray-600 dark:text-gray-300">Character {i + 1}</span>
                     </div>
-                    <button type="button" onClick={() => onRemoveCharacter(c.id)} className="text-gray-400 hover:text-red-500" title="删除">
+                    <button type="button" onClick={() => onRemoveCharacter(c.id)} className="text-gray-400 hover:text-red-500 transition" title="删除">
                       ×
                     </button>
                   </div>

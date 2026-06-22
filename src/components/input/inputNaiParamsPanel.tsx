@@ -121,7 +121,7 @@ export default function InputNaiParamsPanel({
         />
       </label>
       <label className="flex flex-col gap-0.5 justify-end">
-        <span className="text-gray-400 dark:text-gray-500 ml-1">Variety+</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">Variety+（多样性增强）</span>
         <button
           type="button"
           onClick={() => setParams({ variety_boost: !(params.variety_boost ?? false) })}

@@ -8,6 +8,7 @@ import { useDockerApiUrlMigrationNotice } from './hooks/useDockerApiUrlMigration
 import type { AppSettings } from './types'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
+import CharacterDeleteUndoToast from './components/CharacterDeleteUndoToast'
 import GalleryCharacterRail, { GalleryCharacterOverview } from './components/GalleryCharacterRail'
 import TaskGrid from './components/TaskGrid'
 import AgentWorkspace from './components/AgentWorkspace'
@@ -125,6 +126,7 @@ export default function App() {
           </div>
         </main>
       )}
+      <CharacterDeleteUndoToast />
       <InputBar />
       <DetailModal />
       <Lightbox />
