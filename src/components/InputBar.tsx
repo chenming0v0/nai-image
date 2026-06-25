@@ -1102,7 +1102,8 @@ export default function InputBar() {
   const handleFiles = async (files: FileList | File[]) => {
     try {
       const currentCount = useStore.getState().inputImages.length
-      const maxImages = useStore.getState().appMode === 'gallery' ? NAI_GALLERY_MAX_INPUT_IMAGES : API_MAX_IMAGES
+      const currentMode = useStore.getState().appMode
+      const maxImages = currentMode === 'gallery' ? NAI_GALLERY_MAX_INPUT_IMAGES : API_MAX_IMAGES
       if (currentCount >= maxImages) {
         useStore.getState().showToast(
           `图片数量已达上限（${maxImages} 张），无法继续添加`,
@@ -1116,6 +1117,45 @@ export default function InputBar() {
       const toAdd = accepted.slice(0, remaining)
       const discarded = accepted.length - toAdd.length
 
+      // Gallery 模式：当已有参考图（第一张）时，上传第二张图片需要询问用户选择
+      if (currentMode === 'gallery' && currentCount === 1 && toAdd.length > 0) {
+        const file = toAdd[0]
+        const image = await createInputImageFromFile(file)
+        if (!image) {
+          useStore.getState().showToast('图片处理失败', 'error')
+          return
+        }
+
+        // 询问用户：使用 vibe 还是替换参考图
+        setConfirmDialog({
+          title: '选择图片用途',
+          message: '检测到已有参考图，请选择此图片的用途。注意：**参考图和 Vibe 只能选择一个**，如果选择 Vibe，第一张图片也会变为 Vibe 参考。',
+          buttons: [
+            {
+              label: '替换参考图',
+              tone: 'secondary',
+              action: () => {
+                // 替换第一张图片
+                replaceInputImage(0, image)
+                showToast('参考图已替换', 'success')
+              },
+            },
+            {
+              label: '添加为 Vibe',
+              tone: 'primary',
+              action: () => {
+                // 将第一张图片也变成 vibe（从索引 1 开始的才是 vibe）
+                // 添加新图片到列表，这样就有两张 vibe 图了
+                addInputImage(image)
+                showToast('已添加为 Vibe 参考', 'success')
+              },
+            },
+          ],
+        })
+        return
+      }
+
+      // 正常添加图片
       for (const file of toAdd) {
         await addImageFromFile(file)
       }
@@ -1649,8 +1689,9 @@ export default function InputBar() {
 
   const renderImageThumb = (img: (typeof inputImages)[number], idx: number) => {
     const isMaskTarget = maskDraft?.targetImageId === img.id
-    const isGalleryBase = isGalleryMode && idx === 0
-    const isGalleryVibeRef = isGalleryMode && idx >= 1
+    // Gallery 模式下：只有 1 张图是改图底图，2 张及以上全部是 Vibe
+    const isGalleryBase = isGalleryMode && inputImages.length === 1 && idx === 0
+    const isGalleryVibeRef = isGalleryMode && inputImages.length >= 2
     const canEdit = isGalleryVibeRef || !maskTargetImage || isMaskTarget
     const imageHintText = isMaskTarget
       ? '改图底图（局部重绘）'
@@ -1840,14 +1881,19 @@ export default function InputBar() {
               />
             </div>
           )}
-          {isGalleryBase && (
-            <span className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none ${isMaskTarget ? 'bg-violet-600/90' : 'bg-blue-600/90'}`}>
-              {isMaskTarget ? '改图·局部' : '改图'}
+          {isGalleryBase && !isMaskTarget && (
+            <span className="absolute left-1 top-1 rounded bg-blue-600/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
+              改图
+            </span>
+          )}
+          {isGalleryBase && isMaskTarget && (
+            <span className="absolute left-1 top-1 rounded bg-violet-600/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
+              改图·局部
             </span>
           )}
           {isGalleryVibeRef && (
             <span className="absolute left-1 top-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
-              参考{idx}
+              Vibe {idx + 1}
             </span>
           )}
           {!isGalleryMode && isMaskTarget && (

@@ -9,6 +9,7 @@ import type { AppSettings } from './types'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
 import CharacterDeleteUndoToast from './components/CharacterDeleteUndoToast'
+import ReuseConfigUndoToast from './components/ReuseConfigUndoToast'
 import GalleryCharacterRail, { GalleryCharacterOverview } from './components/GalleryCharacterRail'
 import TaskGrid from './components/TaskGrid'
 import AgentWorkspace from './components/AgentWorkspace'
@@ -127,6 +128,7 @@ export default function App() {
         </main>
       )}
       <CharacterDeleteUndoToast />
+      <ReuseConfigUndoToast />
       <InputBar />
       <DetailModal />
       <Lightbox />

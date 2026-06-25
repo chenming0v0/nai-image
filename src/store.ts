@@ -820,6 +820,9 @@ interface AppState {
   deletedCharacter: { character: CharacterSlot; index: number } | null
   setDeletedCharacter: (deleted: { character: CharacterSlot; index: number } | null) => void
   undoDeleteCharacter: () => void
+  reusedConfig: { prompt: string; negativePrompt: string; characters: CharacterSlot[] } | null
+  setReusedConfig: (config: { prompt: string; negativePrompt: string; characters: CharacterSlot[] } | null) => void
+  undoReuseConfig: () => void
   setUseCoords: (v: boolean) => void
   setUseOrder: (v: boolean) => void
   inputImages: InputImage[]
@@ -1389,6 +1392,16 @@ export const useStore = create<AppState>()(
         const newCharacters = [...s.characters]
         newCharacters.splice(s.deletedCharacter.index, 0, s.deletedCharacter.character)
         return { ...syncActiveInputDraft(s, { characters: newCharacters }), deletedCharacter: null }
+      }),
+      reusedConfig: null,
+      setReusedConfig: (reusedConfig) => set({ reusedConfig }),
+      undoReuseConfig: () => set((s) => {
+        if (!s.reusedConfig) return s
+        const { prompt, negativePrompt, characters } = s.reusedConfig
+        return {
+          ...syncActiveInputDraft(s, { prompt, negativePrompt, characters }),
+          reusedConfig: null,
+        }
       }),
       setUseCoords: (use_coords) => set((s) => syncActiveInputDraft(s, { use_coords })),
       setUseOrder: (use_order) => set((s) => syncActiveInputDraft(s, { use_order })),
@@ -4880,7 +4893,7 @@ export async function retryTask(task: TaskRecord) {
 
 /** 复用配置 */
 export async function reuseConfig(task: TaskRecord) {
-  const { settings, setPrompt, setParams, setInputImages, setMaskDraft, clearMaskDraft, showToast, setConfirmDialog, setReusedTaskApiProfile } = useStore.getState()
+  const { settings, prompt, negativePrompt, characters, setPrompt, setNegativePrompt, setCharacters, setParams, setInputImages, setMaskDraft, clearMaskDraft, showToast, setConfirmDialog, setReusedTaskApiProfile, setReusedConfig } = useStore.getState()
   const normalizedSettings = normalizeSettings(settings)
   const currentProfile = getActiveApiProfile(settings)
   const matchedProfile = normalizedSettings.reuseTaskApiProfileTemporarily ? getTaskApiProfile(normalizedSettings, task) : null
@@ -4888,6 +4901,13 @@ export async function reuseConfig(task: TaskRecord) {
   const missingReusedProfile = normalizedSettings.reuseTaskApiProfileTemporarily && !matchedProfile
   const taskProfileName = matchedProfile?.name ?? getTaskApiProfileName(task)
   const paramsSettings = shouldTemporarilyReuseProfile && matchedProfile ? createSettingsForApiProfile(normalizedSettings, matchedProfile) : normalizedSettings
+
+  // 保存当前配置用于撤回
+  setReusedConfig({
+    prompt,
+    negativePrompt: negativePrompt ?? '',
+    characters: [...characters],
+  })
 
   setParams(normalizeParamsForSettings(task.params, paramsSettings, { hasInputImages: task.inputImageIds.length > 0 }))
   setReusedTaskApiProfile(
@@ -4907,6 +4927,14 @@ export async function reuseConfig(task: TaskRecord) {
   }
   setInputImages(imgs)
   setPrompt(task.prompt)
+  // 恢复负向提示词
+  setNegativePrompt(task.negativePrompt ?? '')
+  // 恢复角色提示词
+  if (task.characters && task.characters.length > 0) {
+    setCharacters(task.characters)
+  } else {
+    setCharacters([])
+  }
   const maskTargetImageId = task.maskTargetImageId ?? (task.maskImageId ? task.inputImageIds[0] : null)
   if (maskTargetImageId && task.maskImageId && imgs.some((img) => img.id === maskTargetImageId)) {
     const maskDataUrl = await ensureImageCached(task.maskImageId)
@@ -4935,12 +4963,8 @@ export async function reuseConfig(task: TaskRecord) {
     return
   }
 
-  showToast(
-    shouldTemporarilyReuseProfile && matchedProfile
-      ? `已临时复用该任务的 API 配置「${matchedProfile.name}」`
-      : '已复用配置到输入框',
-    'success',
-  )
+  // 复用成功后，不显示 Toast，而是触发撤回提示
+  // showToast 已被移除，改为通过 setReusedConfig 触发撤回提示
 }
 
 /** 编辑输出：将输出图加入输入 */

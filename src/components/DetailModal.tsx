@@ -38,6 +38,7 @@ export default function DetailModal() {
   const [showRawUrlsModal, setShowRawUrlsModal] = useState(false)
   const [showRawResponseModal, setShowRawResponseModal] = useState(false)
   const [streamPreviewLoaded, setStreamPreviewLoaded] = useState(false)
+  const [expandedCharacterIds, setExpandedCharacterIds] = useState<Set<string>>(new Set())
   const modalRef = useRef<HTMLDivElement>(null)
   const rawUrlsModalRef = useRef<HTMLDivElement>(null)
   const rawResponseModalRef = useRef<HTMLDivElement>(null)
@@ -103,6 +104,21 @@ export default function DetailModal() {
   useEffect(() => {
     setImageIndex(0)
   }, [detailTaskId])
+
+  // 初始化角色展开状态
+  useEffect(() => {
+    if (task?.characters && task.characters.length > 0) {
+      // 如果只有一个角色，默认展开第一个角色
+      if (task.characters.length === 1) {
+        setExpandedCharacterIds(new Set([task.characters[0].id]))
+      } else {
+        // 多个角色时，全部收起
+        setExpandedCharacterIds(new Set())
+      }
+    } else {
+      setExpandedCharacterIds(new Set())
+    }
+  }, [detailTaskId, task?.characters])
 
   useEffect(() => {
     if (task?.status !== 'running' && !(task?.status === 'error' && (task.falRecoverable || task.customRecoverable))) return
@@ -847,7 +863,7 @@ export default function DetailModal() {
           <div data-selectable-text className="flex-1">
             <div className="flex items-center gap-1.5 mb-2">
               <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                输入内容
+                正面提示词
               </h3>
               {task.prompt && !showPendingPrompt && (
                 <button
@@ -889,6 +905,142 @@ export default function DetailModal() {
                   value={currentRevisedPrompt}
                   className="max-w-full rounded px-2 py-1 text-left text-xs leading-relaxed whitespace-pre-wrap"
                 />
+              </div>
+            )}
+            {task.negativePrompt && !showPendingPrompt && (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 mt-4">
+                  <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    负面提示词
+                  </h3>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await copyTextToClipboard(task.negativePrompt!)
+                        showToast('负面提示词已复制', 'success')
+                      } catch (err) {
+                        showToast(getClipboardFailureMessage('复制负面提示词失败', err), 'error')
+                      }
+                    }}
+                    className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
+                    title="复制负面提示词"
+                  >
+                    <CopyIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
+                  {task.negativePrompt}
+                </p>
+              </>
+            )}
+
+            {/* 角色提示词 */}
+            {task.characters && task.characters.length > 0 && !showPendingPrompt && (
+              <div className="mb-4">
+                <div className="flex items-center gap-1.5 mb-2 mt-4">
+                  <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    角色提示词 ({task.characters.length})
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {task.characters.map((character, index) => {
+                    const isExpanded = expandedCharacterIds.has(character.id)
+                    return (
+                      <div
+                        key={character.id}
+                        className="rounded-lg border border-gray-200 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.02] overflow-hidden"
+                      >
+                        <button
+                          onClick={() => {
+                            const newSet = new Set(expandedCharacterIds)
+                            if (isExpanded) {
+                              newSet.delete(character.id)
+                            } else {
+                              newSet.add(character.id)
+                            }
+                            setExpandedCharacterIds(newSet)
+                          }}
+                          className="flex w-full items-center justify-between p-3 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] transition"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                              角色 {index + 1}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 bg-white/50 dark:bg-white/[0.04] px-1.5 py-0.5 rounded">
+                              {character.position}
+                            </span>
+                          </div>
+                          <svg
+                            className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isExpanded && (
+                          <div className="px-3 pb-3 pt-0">
+                            {character.prompt && (
+                              <div className="mb-2">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                    正面
+                                  </span>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation()
+                                      try {
+                                        await copyTextToClipboard(character.prompt)
+                                        showToast(`角色 ${index + 1} 正面提示词已复制`, 'success')
+                                      } catch (err) {
+                                        showToast(getClipboardFailureMessage('复制提示词失败', err), 'error')
+                                      }
+                                    }}
+                                    className="p-0.5 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
+                                    title="复制正面提示词"
+                                  >
+                                    <CopyIcon className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                  {character.prompt}
+                                </p>
+                              </div>
+                            )}
+                            {character.negative_prompt && (
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                    负面
+                                  </span>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation()
+                                      try {
+                                        await copyTextToClipboard(character.negative_prompt)
+                                        showToast(`角色 ${index + 1} 负面提示词已复制`, 'success')
+                                      } catch (err) {
+                                        showToast(getClipboardFailureMessage('复制提示词失败', err), 'error')
+                                      }
+                                    }}
+                                    className="p-0.5 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
+                                    title="复制负面提示词"
+                                  >
+                                    <CopyIcon className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                  {character.negative_prompt}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
